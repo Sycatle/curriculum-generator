@@ -18,6 +18,8 @@ describe("renderAtsPreview", () => {
     expect(txt).toMatch(/EXPÉRIENCE PROFESSIONNELLE/);
     expect(txt).toMatch(/COMPÉTENCES/);
     expect(txt).toMatch(/FORMATION/);
+    expect(txt).toMatch(/Stack\u00A0: /);
+    expect(txt).not.toMatch(/Tech stack/);
   });
 
   it("formats dates as MM/YYYY", () => {

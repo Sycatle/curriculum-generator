@@ -19,9 +19,9 @@ export function toMonthYear(input: string | null | undefined): string | null {
 }
 
 /**
- * Période ATS standard. `end = null` → "Present". Locale FR pris en charge
- * pour la version visible mais le mois reste numérique (les ATS parsent
- * mieux MM/YYYY que "mars 2023").
+ * Formateur de période unique (PDF, DOCX, aperçu HTML et ATS). Mois toujours
+ * numérique (les ATS parsent mieux MM/YYYY que "mars 2023"). `end = null` →
+ * « aujourd'hui » (fr) / « Present » (en).
  */
 export function formatAtsDate(
   start: string | null | undefined,
@@ -31,7 +31,8 @@ export function formatAtsDate(
   const s = toMonthYear(start);
   if (!s) return "";
   const e = end ? toMonthYear(end) : null;
-  const presentLabel = locale === "fr" ? "Présent" : "Present";
+  const presentLabel = locale === "fr" ? "aujourd'hui" : "Present";
+  if (e === s) return s;
   return `${s} – ${e ?? presentLabel}`;
 }
 

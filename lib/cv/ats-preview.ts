@@ -7,32 +7,14 @@
  */
 
 import type { CvData } from "./schema";
-import { formatAtsDate, formatLinkText } from "./format";
+import { SECTION_HEADINGS, labelPrefix } from "./labels";
+import { formatAtsDate, formatLinkText, toMonthYear } from "./format";
 
 export function renderAtsPreview(data: CvData, locale: "fr" | "en" = "en"): string {
   const lines: string[] = [];
-  const headings =
-    locale === "fr"
-      ? {
-          summary: "PROFIL",
-          skills: "COMPÉTENCES",
-          experience: "EXPÉRIENCE PROFESSIONNELLE",
-          projects: "PROJETS",
-          education: "FORMATION",
-          certifications: "CERTIFICATIONS",
-          languages: "LANGUES",
-          interests: "CENTRES D’INTÉRÊT",
-        }
-      : {
-          summary: "SUMMARY",
-          skills: "SKILLS",
-          experience: "WORK EXPERIENCE",
-          projects: "PROJECTS",
-          education: "EDUCATION",
-          certifications: "CERTIFICATIONS",
-          languages: "LANGUAGES",
-          interests: "INTERESTS",
-        };
+  const headings = Object.fromEntries(
+    Object.entries(SECTION_HEADINGS[locale]).map(([k, v]) => [k, v.toUpperCase()]),
+  ) as Record<keyof (typeof SECTION_HEADINGS)["en"], string>;
 
   // Contact
   lines.push(data.header.name);
@@ -52,7 +34,7 @@ export function renderAtsPreview(data: CvData, locale: "fr" | "en" = "en"): stri
 
   if (data.skills.length) {
     lines.push(headings.skills);
-    for (const g of data.skills) lines.push(`${g.category}: ${g.items.join(", ")}`);
+    for (const g of data.skills) lines.push(`${labelPrefix(g.category, locale)}${g.items.join(", ")}`);
     lines.push("");
   }
 
@@ -64,8 +46,8 @@ export function renderAtsPreview(data: CvData, locale: "fr" | "en" = "en"): stri
         `${formatAtsDate(e.startDate, e.endDate, locale)}${e.location ? `  ·  ${e.location}` : ""}`,
       );
       if (e.summary) lines.push(e.summary);
-      for (const b of e.bullets) lines.push(`- ${b}`);
-      if (e.stack.length) lines.push(`Tech stack: ${e.stack.join(", ")}`);
+      for (const b of e.bullets) lines.push(`• ${b}`);
+      if (e.stack.length) lines.push(`${labelPrefix(SECTION_HEADINGS[locale].stack, locale)}${e.stack.join(", ")}`);
       lines.push("");
     }
   }
@@ -76,7 +58,7 @@ export function renderAtsPreview(data: CvData, locale: "fr" | "en" = "en"): stri
       lines.push(p.name);
       if (p.url) lines.push(formatLinkText(p.url));
       lines.push(p.description);
-      if (p.stack.length) lines.push(`Tech stack: ${p.stack.join(", ")}`);
+      if (p.stack.length) lines.push(`${labelPrefix(SECTION_HEADINGS[locale].stack, locale)}${p.stack.join(", ")}`);
       lines.push("");
     }
   }
@@ -96,7 +78,7 @@ export function renderAtsPreview(data: CvData, locale: "fr" | "en" = "en"): stri
   if (data.certifications.length) {
     lines.push(headings.certifications);
     for (const c of data.certifications) {
-      const date = c.date ? ` (${formatAtsDate(c.date, c.date, locale).split(" – ")[0]})` : "";
+      const date = c.date ? ` (${toMonthYear(c.date)})` : "";
       lines.push(`${c.name} — ${c.issuer}${date}`);
       if (c.url) lines.push(formatLinkText(c.url));
     }

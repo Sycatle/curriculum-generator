@@ -1,5 +1,5 @@
 import type { CvData, Theme } from "@/lib/cv/schema";
-import { formatPeriod } from "@/lib/pdf/format";
+import { formatAtsDate } from "@/lib/cv/format";
 
 function withAlpha(hex: string, alpha: number) {
   const v = hex.replace("#", "");
@@ -192,7 +192,7 @@ export function CvHtmlView({ data, theme, locale = "fr" }: Props) {
                     className="text-[10px] uppercase tracking-wide"
                     style={{ color: "var(--cv-muted)" }}
                   >
-                    {formatPeriod(e.startDate, e.endDate ?? null, locale)}
+                    {formatAtsDate(e.startDate, e.endDate ?? null, locale)}
                     {e.location ? ` · ${e.location}` : ""}
                   </p>
                   {e.details && <p className="mt-1 text-xs">{e.details}</p>}
@@ -231,7 +231,7 @@ export function CvHtmlView({ data, theme, locale = "fr" }: Props) {
                       <span style={{ color: "var(--cv-accent)" }}>{exp.company}</span>
                     </p>
                     <p className="text-xs" style={{ color: "var(--cv-muted)" }}>
-                      {formatPeriod(exp.startDate, exp.endDate, locale)}
+                      {formatAtsDate(exp.startDate, exp.endDate, locale)}
                       {exp.location ? ` · ${exp.location}` : ""}
                     </p>
                   </div>

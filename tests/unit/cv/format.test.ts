@@ -19,10 +19,17 @@ describe("toMonthYear", () => {
 describe("formatAtsDate", () => {
   it("renders period with Present", () => {
     expect(formatAtsDate("2023-03", null)).toBe("03/2023 – Present");
-    expect(formatAtsDate("2023-03", null, "fr")).toBe("03/2023 – Présent");
+    expect(formatAtsDate("2023-03", null, "fr")).toBe("03/2023 – aujourd'hui");
+  });
+  it("collapses a single-month period", () => {
+    expect(formatAtsDate("2026-02", "2026-02", "fr")).toBe("02/2026");
   });
   it("renders closed period", () => {
     expect(formatAtsDate("2021-01", "2023-06")).toBe("01/2021 – 06/2023");
+  });
+  it("never emits the legacy long-month format", () => {
+    expect(formatAtsDate("2023-01", "2024-02", "fr")).not.toMatch(/[a-zé]{3,}\.? \d{4}/);
+    expect(formatAtsDate("2023", "2024", "en")).toBe("01/2023 – 01/2024");
   });
   it("returns empty when no start", () => {
     expect(formatAtsDate(null, null)).toBe("");

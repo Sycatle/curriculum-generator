@@ -4,7 +4,7 @@
  *
  * Règles ATS appliquées :
  * - Single column (paragraphes simples, aucune table/textbox/colonne).
- * - Headings standards EN ("Work Experience", "Education", …).
+ * - Headings standards localisés (même source que le PDF : `SECTION_HEADINGS`).
  * - Dates MM/YYYY via `formatAtsDate`.
  * - Ordre canonique Contact → Summary → Skills → Experience → Projects →
  *   Education → Certifications → Languages → Interests.
@@ -12,7 +12,6 @@
  */
 
 import {
-  AlignmentType,
   Document,
   ExternalHyperlink,
   HeadingLevel,
@@ -22,7 +21,8 @@ import {
   UnderlineType,
 } from "docx";
 import type { CvData } from "./schema";
-import { formatAtsDate, formatLinkText } from "./format";
+import { SECTION_HEADINGS, labelPrefix } from "./labels";
+import { formatAtsDate, formatLinkText, toMonthYear } from "./format";
 
 const FONT = "Calibri";
 
@@ -120,6 +120,7 @@ function itemTitleLine(role: string, company: string): Paragraph {
 
 export async function renderCvDocxBuffer(data: CvData, locale: "fr" | "en" = "en"): Promise<Buffer> {
   const paragraphs: Paragraph[] = [];
+  const headings = SECTION_HEADINGS[locale];
 
   // ----- Contact bloc
   paragraphs.push(h1(data.header.name));
@@ -133,19 +134,19 @@ export async function renderCvDocxBuffer(data: CvData, locale: "fr" | "en" = "en
 
   // ----- Summary
   if (data.summary) {
-    paragraphs.push(sectionHeading("Summary"));
+    paragraphs.push(sectionHeading(headings.summary));
     paragraphs.push(body(data.summary));
   }
 
   // ----- Skills
   if (data.skills.length) {
-    paragraphs.push(sectionHeading("Skills"));
+    paragraphs.push(sectionHeading(headings.skills));
     for (const g of data.skills) {
       paragraphs.push(
         new Paragraph({
           spacing: { after: 40 },
           children: [
-            new TextRun({ text: `${g.category}: `, bold: true, size: 22, font: FONT }),
+            new TextRun({ text: labelPrefix(g.category, locale), bold: true, size: 22, font: FONT }),
             new TextRun({ text: g.items.join(", "), size: 22, font: FONT }),
           ],
         }),
@@ -155,7 +156,7 @@ export async function renderCvDocxBuffer(data: CvData, locale: "fr" | "en" = "en
 
   // ----- Work Experience
   if (data.experiences.length) {
-    paragraphs.push(sectionHeading("Work Experience"));
+    paragraphs.push(sectionHeading(headings.experience));
     for (const e of data.experiences) {
       paragraphs.push(itemTitleLine(e.role, e.company));
       const period = formatAtsDate(e.startDate, e.endDate, locale);
@@ -163,13 +164,13 @@ export async function renderCvDocxBuffer(data: CvData, locale: "fr" | "en" = "en
       paragraphs.push(meta(`${period}${loc}`));
       if (e.summary) paragraphs.push(body(e.summary));
       for (const b of e.bullets) paragraphs.push(bullet(b));
-      if (e.stack.length) paragraphs.push(meta(`Tech stack: ${e.stack.join(", ")}`));
+      if (e.stack.length) paragraphs.push(meta(`${labelPrefix(headings.stack, locale)}${e.stack.join(", ")}`));
     }
   }
 
   // ----- Projects
   if (data.projects.length) {
-    paragraphs.push(sectionHeading("Projects"));
+    paragraphs.push(sectionHeading(headings.projects));
     for (const p of data.projects) {
       paragraphs.push(
         new Paragraph({
@@ -179,13 +180,13 @@ export async function renderCvDocxBuffer(data: CvData, locale: "fr" | "en" = "en
       );
       if (p.url) paragraphs.push(linkPara(p.url));
       paragraphs.push(body(p.description));
-      if (p.stack.length) paragraphs.push(meta(`Tech stack: ${p.stack.join(", ")}`));
+      if (p.stack.length) paragraphs.push(meta(`${labelPrefix(headings.stack, locale)}${p.stack.join(", ")}`));
     }
   }
 
   // ----- Education
   if (data.education.length) {
-    paragraphs.push(sectionHeading("Education"));
+    paragraphs.push(sectionHeading(headings.education));
     for (const e of data.education) {
       paragraphs.push(itemTitleLine(e.degree, e.school));
       const period = formatAtsDate(e.startDate ?? null, e.endDate ?? null, locale);
@@ -197,9 +198,9 @@ export async function renderCvDocxBuffer(data: CvData, locale: "fr" | "en" = "en
 
   // ----- Certifications
   if (data.certifications.length) {
-    paragraphs.push(sectionHeading("Certifications"));
+    paragraphs.push(sectionHeading(headings.certifications));
     for (const c of data.certifications) {
-      const dateText = c.date ? ` (${formatAtsDate(c.date, c.date, locale).split(" – ")[0]})` : "";
+      const dateText = c.date ? ` (${toMonthYear(c.date)})` : "";
       paragraphs.push(body(`${c.name} — ${c.issuer}${dateText}`));
       if (c.url) paragraphs.push(linkPara(c.url));
     }
@@ -207,13 +208,13 @@ export async function renderCvDocxBuffer(data: CvData, locale: "fr" | "en" = "en
 
   // ----- Languages
   if (data.languages.length) {
-    paragraphs.push(sectionHeading("Languages"));
+    paragraphs.push(sectionHeading(headings.languages));
     paragraphs.push(body(data.languages.map((l) => `${l.name} (${l.level})`).join(" · ")));
   }
 
   // ----- Interests
   if (data.interests.length) {
-    paragraphs.push(sectionHeading("Interests"));
+    paragraphs.push(sectionHeading(headings.interests));
     paragraphs.push(body(data.interests.join(" · ")));
   }
 
