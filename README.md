@@ -1,163 +1,163 @@
+<div align="center">
+
 # CV Generator
 
-A self-hosted, open-source CV generator with live preview and clean PDF export.
-Built for developers who would rather edit content than fight with Canva.
+**Edit your content, not your layout.**
+A self-hosted CV builder with live PDF preview, an ATS score, and a job-search toolkit built in.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Stack](https://img.shields.io/badge/stack-Next.js%2015%20·%20TypeScript%20·%20Postgres%20·%20Drizzle-0f172a)
-![PDF](https://img.shields.io/badge/PDF-A4%20single--or%20multi--page-2563eb)
+[![CI](https://github.com/Sycatle/cv-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/Sycatle/cv-generator/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
 
-> **Live demo**: [`/showcase`](http://localhost:3030/showcase) (self-hosted). See the layout and the design tokens in action without signing up.
+[Features](#features) · [Quickstart](#quickstart) · [Architecture](#architecture) · [Deployment](#deployment) · [Roadmap](#roadmap)
+
+</div>
+
+---
+
+## Why
+
+Most CV tools hand you a design and a paywall. This one gives you a typed data model, three templates driven by the same design tokens, and checks that tell you how a parser and a recruiter will read the result. Your data stays on your server: no SaaS lock-in, no analytics SDK, no telemetry.
 
 ## Features
 
-- **Live PDF preview** while you edit — no rebuild loop
-- **PDF export** powered by `@react-pdf/renderer`, A4, with single-page auto-fit or natural multi-page pagination
-- **Three templates**: `modern` (two-column legacy), `premium` (single-column), and `ats` (single-column, parser-friendly)
-- **Design tokens** (colors, fonts, spacing, accent style) drive both PDF and HTML
-- **Drag & drop reorder** for experiences, projects, skills, languages, education
-- **Undo/redo** (`⌘Z` / `⌘⇧Z`) with a 50-step history stack
-- **Keyboard shortcuts**: `⌘S` save now · `⌘P` toggle preview · `⌘K` command palette
-- **OCR import**: drop an old CV (PDF or image) — Claude extracts a structured draft
-- **AI assistant**: in-editor chat with tool-calling to rewrite bullets, add experiences, retarget the CV — every change reviewed in a diff before applying
-- **Public shareable URL** with HTML rendering + PDF download
-- **Snapshot history**: every save creates a restorable revision
-- **Multi-user**: GitHub OAuth or magic link sign-in via Better-Auth
-- **Self-hosted by design**: Docker Compose + Caddy on your own VPS
-- **Secrets via SOPS** — commit encrypted env files, decrypt at deploy time
+### Write
+
+- **Live PDF preview** while you type, no rebuild loop
+- **Three templates**: `ats` (single column, parser-friendly), `premium` (single column) and `modern` (two columns)
+- **One design system for PDF and HTML**: colors, fonts, spacing and accent style come from a single `Theme`
+- **Single-page auto-fit** that reports exactly what it trims, or natural multi-page pagination
+- **Per-CV locale** (`fr` / `en`): section headings, date formats and labels follow the language
+- **Editor comforts**: drag and drop reordering, undo/redo (50 steps), autosave, snapshot history, `⌘S` save, `⌘P` preview, `⌘K` command palette
+
+### Check
+
+- **ATS score (0 to 100)** from deterministic checks, no AI call: missing sections, summary length, skill overload, unproven skills, weak or missing verbs, metrics, date gaps and overlaps, stack per job
+- **ATS text preview**: the plain text a parser extracts from your PDF
+- **Job match**: paste an offer, see which keywords are proven in your experience and which are only listed in your skills
+
+### Export and share
+
+- **PDF** (A4, `@react-pdf/renderer`) with proper metadata and a download name based on your name
+- **DOCX** export, localized like the PDF
+- **Public share link** with an HTML view and a PDF download, set to `noindex`
+
+### Assist (optional, needs `ANTHROPIC_API_KEY`)
+
+- **OCR import**: drop an old CV (PDF or image) and get a structured draft
+- **Chat assistant** with tool calling: rewrite bullets, add experiences, retarget the CV. Every change is shown as a diff before it is applied. See [`docs/ai.md`](docs/ai.md)
+
+### Search
+
+- **Job sources and postings**, **company discovery and enrichment**, **application tracking**, and **outreach** with batch sending, delivery webhooks and one-click unsubscribe
+
+### Run it yourself
+
+- **Multi-user** sign-in with GitHub OAuth or magic link ([Better Auth](https://www.better-auth.com))
+- **Docker Compose + Caddy** on your own VPS, **secrets encrypted with SOPS**
 
 ## Stack
 
-Next.js 15 (App Router) · TypeScript · Tailwind v4 · PostgreSQL 16 · Drizzle ORM ·
-Better-Auth · `@react-pdf/renderer` · Zod · shadcn/ui patterns · Anthropic SDK
-(Claude) · Vitest · Playwright · Docker · Caddy · GitHub Actions.
+| Layer     | Tools                                                          |
+| --------- | -------------------------------------------------------------- |
+| App       | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4 |
+| Data      | PostgreSQL 16, Drizzle ORM, Zod                                |
+| Documents | `@react-pdf/renderer`, `docx`                                  |
+| Auth      | Better Auth                                                    |
+| AI        | Anthropic SDK                                                  |
+| Quality   | Vitest, Playwright, ESLint, Prettier, GitHub Actions           |
+| Ops       | Docker, Caddy, SOPS + age                                      |
+
+## Quickstart
+
+Requires Node 20+, pnpm 9+ and Docker.
+
+```bash
+pnpm install
+pnpm db:up                      # PostgreSQL in Docker
+cp .env.example .env            # then set BETTER_AUTH_SECRET: openssl rand -hex 32
+pnpm db:migrate
+pnpm dev                        # http://localhost:3000
+```
+
+Without `SMTP_HOST`, magic-link emails are printed in the dev console: copy the link from the terminal to sign in. Without `ANTHROPIC_API_KEY`, only OCR import and the chat assistant are disabled.
+
+Browse `/showcase` to see the templates and design tokens without signing in.
 
 ## Architecture
 
 ```
-app/                 Next.js routes (auth, dashboard, public CV, API)
-  api/auth/[...all]  Better-Auth handler
-  api/cv/[id]/pdf    Streamed PDF (auth or public)
-  api/cv/[id]/chat   AI assistant streaming (NDJSON, tool-calling loop)
-  api/cv/import      OCR multimodal extraction (PDF/PNG/JPG/WebP)
-  api/health         Healthcheck (Docker / probes)
-  cv/[id]            Public HTML CV
+app/                 Routes: auth, dashboard, public CV, API
+  api/cv/[id]/pdf     Streamed PDF, with an X-CV-Fit header
+  api/cv/[id]/docx    DOCX export
+  api/cv/[id]/chat    AI assistant (NDJSON streaming, tool-calling loop)
+  api/cv/import       OCR extraction (PDF, PNG, JPG, WebP)
+  api/jobs, companies, outreach, cron, webhooks
 lib/
-  auth/              Better-Auth config + email transport
-  db/                Drizzle schema + client
-  cv/                Domain (Zod schemas, repository, defaults)  ── pure
-  pdf/               React-PDF template + tokens + render        ── pure
-  ai/                Anthropic client, OCR extractor, agent tools + loop
-components/
-  cms/               Editor form (per-section, accordion)
-  preview/           Live PDF viewer + HTML renderer
-  ui/                Reusable primitives
-docker/              Dockerfile entrypoint + Caddyfile
-secrets/             SOPS-encrypted env files (templates committed)
-tests/
-  unit/              Vitest (Zod, repository, PDF)
-  e2e/               Playwright smoke
+  cv/                 Domain: Zod schemas, ATS checks, job match, labels, repository   (pure)
+  pdf/                React-PDF templates, tokens, fit cascade, render                  (pure)
+  ai/                 Anthropic client, OCR extractor, agent tools
+  jobs/ companies/ outreach/   Job-search toolkit
+  auth/ db/           Better Auth config, Drizzle schema and client
+components/           cms/ (editor), preview/ (PDF and HTML), ui/ (primitives)
+docker/               Entrypoint and Caddyfile
+secrets/              SOPS-encrypted env files (templates committed)
+tests/                unit/ (Vitest), e2e/ (Playwright smoke)
 ```
 
-The `lib/cv/` domain has no React or PDF dependency.
-The `lib/pdf/` layer takes validated `CvData` as input and knows nothing about the DB.
-UI components never touch the DB directly — always go through Server Actions or route handlers.
+Three rules keep it tidy:
 
-## Quickstart (local dev)
+- `lib/cv/` has no React and no PDF dependency.
+- `lib/pdf/` takes validated `CvData` and knows nothing about the database.
+- UI components never reach the database directly: they go through Server Actions or route handlers.
 
-Requires Node 20+, pnpm 9+, Docker.
+The `ats` template follows parser constraints on purpose: text only, no icons, no tracked headings (which extract as `P R O F I L`), standard section names and a body size that never goes below 9 pt.
 
-```bash
-# 1. Install
-pnpm install
-
-# 2. Bring up Postgres
-pnpm db:up
-
-# 3. Configure env
-cp .env.example .env
-# Generate a secret:
-openssl rand -hex 32   # paste into BETTER_AUTH_SECRET
-
-# 4. Apply migrations
-pnpm db:generate    # only if you edited the schema
-pnpm db:migrate
-
-# 5. Run
-pnpm dev
-# → http://localhost:3000
-```
-
-Without `SMTP_HOST` set, magic-link emails are printed to the dev console — copy the link from the terminal to sign in.
-
-To enable the AI features (OCR import + chat assistant), set `ANTHROPIC_API_KEY`
-in `.env`. Without it, the rest of the app still works — only `/cvs/import` and
-the editor's "Assistant" panel are disabled. See [`docs/ai.md`](docs/ai.md) for
-how it works, the cost envelope, and which models are used.
-
-## Tests
+## Development
 
 ```bash
-pnpm test          # unit + integration (requires Postgres up)
-pnpm test:e2e      # Playwright smoke (boots its own dev server)
+pnpm test          # unit tests (Vitest)
+pnpm test:e2e      # Playwright smoke test, starts its own dev server
 pnpm typecheck
 pnpm lint
 ```
 
-## Deployment (VPS)
+The ATS thresholds live in [`lib/cv/ats-checks.ts`](lib/cv/ats-checks.ts) and are documented against [`docs/research/cv-watch-2026.md`](docs/research/cv-watch-2026.md).
 
-This project is designed for a small VPS running Docker.
+## Deployment
 
-### One-time setup
+Designed for a small VPS running Docker.
 
-1. Install Docker + Docker Compose on the VPS.
-2. Install [SOPS](https://github.com/getsops/sops) and [age](https://github.com/FiloSottile/age) on your machine and the VPS.
-3. Generate an age key: `age-keygen -o ~/.config/sops/age/keys.txt`. Put the **public** key into `.sops.yaml` and replicate the **private** key to the VPS at the same path.
-4. Fill in `secrets/.env.production.example` and `secrets/.env.postgres.example`, save them as `secrets/.env.production` / `secrets/.env.postgres`, then encrypt:
+**One-time setup**
+
+1. Install Docker and Docker Compose on the VPS.
+2. Install [SOPS](https://github.com/getsops/sops) and [age](https://github.com/FiloSottile/age) locally and on the VPS.
+3. Generate a key with `age-keygen -o ~/.config/sops/age/keys.txt`. Put the public key in `.sops.yaml` and copy the private key to the same path on the VPS.
+4. Fill in `secrets/.env.production.example` and `secrets/.env.postgres.example`, save them without the `.example` suffix, then encrypt:
 
    ```bash
    sops -e -i secrets/.env.production
    sops -e -i secrets/.env.postgres
    ```
 
-5. Commit the encrypted files. Plaintext files are gitignored.
+5. Commit the encrypted files. Plaintext ones are gitignored.
 
-### Deploy
+**Deploy.** GitHub Actions builds the image, pushes it to GHCR, then connects to the VPS over SSH to decrypt the secrets and run `docker compose pull && docker compose up -d --remove-orphans`.
 
-GitHub Actions builds the image, pushes it to GHCR, and SSHs into the VPS to:
+Required Actions secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`, plus `SOPS_AGE_KEY` if you decrypt in CI rather than on the VPS.
 
-```
-sops -d secrets/.env.production > .env.production
-sops -d secrets/.env.postgres   > .env.postgres
-docker compose pull
-docker compose up -d --remove-orphans
-```
+**Backups**: see [`docs/ops/backup.md`](docs/ops/backup.md).
 
-Required GitHub Actions secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`, plus `SOPS_AGE_KEY` if you decrypt in CI instead of on the VPS.
+## Roadmap
 
-### Backups
-
-See [`docs/ops/backup.md`](docs/ops/backup.md).
-
-## Why this project (recruiters, this is for you)
-
-- **Production-grade, not a toy**: type-safe end-to-end (Zod + Drizzle types), tested (vitest + playwright), CI/CD, SOPS-encrypted secrets, observability-ready.
-- **Two-front cohesion**: a single `Theme` object drives both the React-PDF document AND the HTML view. Same tokens, same layout, no drift.
-- **Tasteful UX**: undo/redo, drag & drop, ⌘K command palette, autosave with visible status. Built like a product.
-- **Self-hosted from day one**: no SaaS lock-in, no analytics SDK, no telemetry — your CV stays on your machine.
-
-Browse `/showcase` for the rendering, then read `lib/pdf/template.tsx` and `lib/cv/schema.ts` to see how it's built.
-
-## Roadmap (post-V1)
-
-- Profile photo upload + `sharp` resize pipeline
-- Multi-language CV (FR / EN side-by-side, bilingual export)
-- Targeted CV variants (full-stack / freelance / lead) sharing a pool of experiences
-- ATS-friendliness scoring + suggestions (extend the existing AI assistant)
-- Import from LinkedIn export / JSON Resume
-- Per-user AI usage tracking and rate limit (currently unlimited at app level)
-- Loki/Grafana observability stack
+- [ ] Profile photo upload with a resize pipeline
+- [ ] Targeted CV variants (full stack, freelance, lead) sharing one pool of experiences
+- [ ] Import from LinkedIn export and JSON Resume
+- [ ] Per-user AI usage tracking and rate limits
+- [ ] Observability stack (Loki, Grafana)
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE) © 2026 sycatle
