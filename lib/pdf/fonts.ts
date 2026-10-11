@@ -25,7 +25,35 @@ export function registerFonts(): void {
   Font.registerHyphenationCallback((word) => [word]);
 }
 
-function loadServerFonts(): Array<{ src: string; fontWeight: 400 | 500 | 600 | 700 }> {
+type FontFace = { src: string; fontWeight: 400 | 500 | 600 | 700 };
+let serverFontsCache: FontFace[] | null = null;
+
+/**
+ * Give the next document its own fontkit instances (server only).
+ *
+ * fontkit memoises `Glyph` objects per font instance, keyed by glyph id and
+ * keeping the codePoints of the *first* use. Shared across documents, a glyph
+ * first reached through another character (e.g. around "·") keeps the wrong
+ * ToUnicode entry: "Node.js" was extracted as "Node js" in later PDFs. Fresh
+ * `FontSource`s per document avoid that. Data-URL sources load synchronously,
+ * so documents already being laid out never see an unloaded font.
+ */
+export function refreshFonts(): void {
+  if (typeof window !== "undefined") return;
+  const fonts = loadServerFonts();
+  if (fonts.length === 0) return;
+  const store = Font as unknown as {
+    getRegisteredFonts(): Record<string, { sources: Array<{ load(): Promise<void> }> } | undefined>;
+  };
+  const family = store.getRegisteredFonts().Inter;
+  if (!family) return;
+  family.sources = [];
+  Font.register({ family: "Inter", fonts });
+  for (const source of family.sources) void source.load();
+}
+
+function loadServerFonts(): FontFace[] {
+  if (serverFontsCache) return serverFontsCache;
   try {
      
     const req = eval("require") as NodeRequire;
@@ -34,12 +62,13 @@ function loadServerFonts(): Array<{ src: string; fontWeight: 400 | 500 | 600 | 7
     const dir = path.join(process.cwd(), "public", "fonts", "inter");
     const read = (file: string) =>
       `data:font/ttf;base64,${fs.readFileSync(path.join(dir, file)).toString("base64")}`;
-    return [
+    serverFontsCache = [
       { src: read("Inter-Regular.ttf"), fontWeight: 400 },
       { src: read("Inter-Medium.ttf"), fontWeight: 500 },
       { src: read("Inter-SemiBold.ttf"), fontWeight: 600 },
       { src: read("Inter-Bold.ttf"), fontWeight: 700 },
     ];
+    return serverFontsCache;
   } catch (err) {
     console.warn("[pdf/fonts] failed to load Inter from disk, falling back to Helvetica", err);
     return [];

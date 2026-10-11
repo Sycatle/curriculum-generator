@@ -1,8 +1,9 @@
 import { Document, Link, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { CvData, Theme } from "@/lib/cv/schema";
 import { applyTruncation, resolveTokens, type ResolvedTokens, type TokenOverrides } from "./tokens";
-import { registerFonts } from "./fonts";
-import { formatPeriod } from "./format";
+import { mailtoHref, pdfMetadata, telHref } from "./meta";
+import { refreshFonts, registerFonts } from "./fonts";
+import { formatAtsDate, toMonthYear } from "@/lib/cv/format";
 
 registerFonts();
 
@@ -73,7 +74,6 @@ function makeStyles(t: ResolvedTokens, sidebarRatio: number) {
       fontSize: t.fontSize.sectionLabel,
       color: t.colors.primary,
       textTransform: "uppercase",
-      letterSpacing: 1.2,
       marginBottom: 5,
     },
 
@@ -83,10 +83,11 @@ function makeStyles(t: ResolvedTokens, sidebarRatio: number) {
       fontSize: t.fontSize.micro,
       color: t.colors.muted,
       textTransform: "uppercase",
-      letterSpacing: 0.8,
+      letterSpacing: 0.3,
       marginBottom: 2,
     },
     sidebarLink: { color: t.colors.accent, textDecoration: "none" },
+    plainLink: { textDecoration: "none" },
 
     // Skills (sidebar)
     skillGroup: { marginBottom: t.spacing.item },
@@ -203,17 +204,13 @@ function Pills({
 }
 
 export function CvDocument({ data: rawData, theme, locale = "fr", overrides, paginate = true }: Props) {
+  refreshFonts();
   const tokens = resolveTokens(theme, overrides);
   const styles = makeStyles(tokens, tokens.layout.sidebarRatio);
   const data = applyTruncation(rawData, overrides);
 
   return (
-    <Document
-      title={`${data.header.name} — ${data.header.title}`}
-      author={data.header.name}
-      creator="CV Generator"
-      producer="CV Generator"
-    >
+    <Document {...pdfMetadata(data, locale)}>
       <Page size="A4" wrap={paginate} style={styles.page}>
         <View style={styles.body}>
         {/* ----------- Sidebar ----------- */}
@@ -224,8 +221,16 @@ export function CvDocument({ data: rawData, theme, locale = "fr", overrides, pag
           {/* Contact */}
           <View style={styles.sectionWrap}>
             <SectionHeader label={locale === "fr" ? "Contact" : "Contact"} styles={styles} />
-            {data.header.email && <Text style={styles.sidebarText}>{data.header.email}</Text>}
-            {data.header.phone && <Text style={styles.sidebarText}>{data.header.phone}</Text>}
+            {data.header.email && (
+              <Link src={mailtoHref(data.header.email)} style={[styles.sidebarText, styles.plainLink]}>
+                {data.header.email}
+              </Link>
+            )}
+            {data.header.phone && (
+              <Link src={telHref(data.header.phone)} style={[styles.sidebarText, styles.plainLink]}>
+                {data.header.phone}
+              </Link>
+            )}
             {data.header.location && (
               <Text style={styles.sidebarText}>{data.header.location}</Text>
             )}
@@ -289,7 +294,7 @@ export function CvDocument({ data: rawData, theme, locale = "fr", overrides, pag
                   <Text style={styles.eduDegree}>{e.degree}</Text>
                   <Text style={styles.eduSchool}>{e.school}</Text>
                   <Text style={styles.eduMeta}>
-                    {formatPeriod(e.startDate, e.endDate ?? null, locale)}
+                    {formatAtsDate(e.startDate, e.endDate ?? null, locale)}
                     {e.location ? ` · ${e.location}` : ""}
                   </Text>
                   {e.details && (
@@ -322,7 +327,7 @@ export function CvDocument({ data: rawData, theme, locale = "fr", overrides, pag
                       <Text style={styles.itemCompany}>{exp.company}</Text>
                     </Text>
                     <Text style={styles.itemPeriod}>
-                      {formatPeriod(exp.startDate, exp.endDate, locale)}
+                      {formatAtsDate(exp.startDate, exp.endDate, locale)}
                       {exp.location ? ` · ${exp.location}` : ""}
                     </Text>
                   </View>
@@ -353,7 +358,7 @@ export function CvDocument({ data: rawData, theme, locale = "fr", overrides, pag
                       <Text style={{ color: tokens.colors.muted, fontWeight: 400 }}> · </Text>
                       <Text style={styles.itemCompany}>{c.issuer}</Text>
                     </Text>
-                    {c.date && <Text style={styles.itemPeriod}>{c.date}</Text>}
+                    {c.date && <Text style={styles.itemPeriod}>{toMonthYear(c.date)}</Text>}
                   </View>
                 </View>
               ))}

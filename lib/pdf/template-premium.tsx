@@ -1,8 +1,11 @@
 import { Document, Link as PdfLink, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import type { ReactNode } from "react";
 import type { CvData, Theme } from "@/lib/cv/schema";
-import { formatAtsDate, formatLinkText } from "@/lib/cv/format";
+import { SECTION_HEADINGS, labelPrefix } from "@/lib/cv/labels";
+import { formatAtsDate, formatLinkText, toMonthYear } from "@/lib/cv/format";
 import { applyTruncation, resolveTokens, type ResolvedTokens, type TokenOverrides } from "./tokens";
-import { registerFonts } from "./fonts";
+import { mailtoHref, pdfMetadata, telHref } from "./meta";
+import { refreshFonts, registerFonts } from "./fonts";
 
 registerFonts();
 
@@ -73,6 +76,7 @@ function makeStyles(t: ResolvedTokens) {
       marginTop: 2,
     },
     contactLink: { color: accent, textDecoration: "none" },
+    contactPlain: { color: muted, textDecoration: "none" },
 
     // ----- Section
     sectionWrap: { marginBottom: t.spacing.section + 2 },
@@ -82,7 +86,6 @@ function makeStyles(t: ResolvedTokens) {
       fontSize: t.fontSize.sectionLabel,
       color: accent,
       textTransform: "uppercase",
-      letterSpacing: 2,
       marginBottom: 6,
     },
 
@@ -131,7 +134,7 @@ function makeStyles(t: ResolvedTokens) {
       fontSize: t.fontSize.micro,
       color: muted,
       marginTop: 4,
-      letterSpacing: 0.4,
+      letterSpacing: 0.3,
       textTransform: "uppercase",
     },
 
@@ -166,52 +169,44 @@ export function CvPremiumDocument({
   overrides,
   paginate = true,
 }: Props) {
+  refreshFonts();
   const tokens = resolveTokens(theme, overrides);
   const styles = makeStyles(tokens);
   const data = applyTruncation(rawData, overrides);
 
-  const contactBits = [data.header.email, data.header.phone, data.header.location].filter(
-    (b): b is string => Boolean(b),
-  );
+  const contactBits: ReactNode[] = [];
+  if (data.header.email)
+    contactBits.push(
+      <PdfLink key="email" src={mailtoHref(data.header.email)} style={styles.contactPlain}>
+        {data.header.email}
+      </PdfLink>,
+    );
+  if (data.header.phone)
+    contactBits.push(
+      <PdfLink key="phone" src={telHref(data.header.phone)} style={styles.contactPlain}>
+        {data.header.phone}
+      </PdfLink>,
+    );
+  if (data.header.location) contactBits.push(data.header.location);
 
-  const HEADINGS = {
-    en: {
-      summary: "Summary",
-      skills: "Skills",
-      experience: "Work Experience",
-      projects: "Projects",
-      education: "Education",
-      certifications: "Certifications",
-      languages: "Languages",
-      interests: "Interests",
-    },
-    fr: {
-      summary: "Profil",
-      skills: "Compétences",
-      experience: "Expérience professionnelle",
-      projects: "Projets",
-      education: "Formation",
-      certifications: "Certifications",
-      languages: "Langues",
-      interests: "Centres d’intérêt",
-    },
-  };
-  const headings = HEADINGS[locale];
+  const headings = SECTION_HEADINGS[locale];
 
   return (
-    <Document
-      title={`${data.header.name} — ${data.header.title}`}
-      author={data.header.name}
-      creator="CV Generator"
-      producer="CV Generator"
-    >
+    <Document {...pdfMetadata(data, locale)}>
       <Page size="A4" wrap={paginate} style={styles.page}>
         {/* Header block */}
         <View style={styles.headerBlock}>
           <Text style={styles.name}>{data.header.name}</Text>
           <Text style={styles.role}>{data.header.title}</Text>
           {contactBits.length > 0 && (
-            <Text style={styles.contactLine}>{contactBits.join("  ·  ")}</Text>
+            <Text style={styles.contactLine}>
+              {contactBits.map((b, i) => (
+                <Text key={i}>
+                  {i > 0 ? "  ·  " : ""}
+                  {b}
+                </Text>
+              ))}
+            </Text>
           )}
           {data.header.links.length > 0 && (
             <View style={styles.contactLinks}>
@@ -243,7 +238,7 @@ export function CvPremiumDocument({
             <SectionTitle styles={styles}>{headings.skills}</SectionTitle>
             {data.skills.map((g, i) => (
               <Text key={i} style={styles.skillRow}>
-                <Text style={styles.skillCategory}>{g.category}: </Text>
+                <Text style={styles.skillCategory}>{labelPrefix(g.category, locale)}</Text>
                 {g.items.join(", ")}
               </Text>
             ))}
@@ -342,7 +337,7 @@ export function CvPremiumDocument({
                   </Text>
                   {c.date && (
                     <Text style={styles.itemPeriod}>
-                      {formatAtsDate(c.date, c.date, locale).split(" – ")[0]}
+                      {toMonthYear(c.date)}
                     </Text>
                   )}
                 </View>
