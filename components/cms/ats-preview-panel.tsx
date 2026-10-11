@@ -20,7 +20,7 @@ export function AtsPreviewPanel({ data, locale }: Props) {
         Vue ATS (texte extrait)
       </div>
       <p className="border-b p-3 text-xs text-[var(--color-muted)]">
-        Texte que verra un ATS après parsing. Si une info ne s'affiche pas ici,
+        Texte que verra un ATS après parsing. Si une info ne s&apos;affiche pas ici,
         elle est invisible aux filtres RH.
       </p>
       <pre className="flex-1 overflow-y-auto whitespace-pre-wrap p-3 font-mono text-[11px] leading-relaxed">

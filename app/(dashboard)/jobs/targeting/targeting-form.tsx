@@ -205,7 +205,7 @@ export function TargetingForm({
             checked={state.excludeAlternance}
             onChange={(e) => update("excludeAlternance", e.target.checked)}
           />
-          Exclure les contrats d'alternance/apprentissage
+          Exclure les contrats d&apos;alternance/apprentissage
         </label>
       </Section>
 
