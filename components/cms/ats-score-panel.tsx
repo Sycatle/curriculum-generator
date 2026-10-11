@@ -136,7 +136,9 @@ function IssueRow({
       >
         <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${SEVERITY_COLOR[issue.severity]}`} />
         <span className="flex-1">{issue.message}</span>
-        <span className="shrink-0 text-[10px] text-[var(--color-muted)]">−{issue.impact}</span>
+        {issue.impact > 0 && (
+          <span className="shrink-0 text-[10px] text-[var(--color-muted)]">−{issue.impact}</span>
+        )}
       </button>
     </li>
   );

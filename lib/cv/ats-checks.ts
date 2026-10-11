@@ -26,6 +26,13 @@ export type IssueCode =
   | "skills.too-few-groups"
   | "skills.generic"
   | "dates.bad-format"
+  | "header.no-title"
+  | "header.no-location"
+  | "dates.end-before-start"
+  | "dates.gap"
+  | "dates.overlap"
+  | "skills.unproven"
+  | "experiences.no-stack"
   | "bullets.no-verb"
   | "bullets.no-metric"
   | "bullets.weak-verb"
@@ -97,7 +104,98 @@ function firstWord(text: string): string {
   return m ? m[0].toLowerCase() : "";
 }
 
-export function computeAtsScore(data: CvData): AtsScoreResult {
+const MAX_GAP_MONTHS = 6;
+
+/** Index de mois absolu (année*12 + mois-0). Année seule : janvier (début) ou décembre (fin). */
+function parseMonth(date: string, edge: "start" | "end"): number | null {
+  if (!VALID_DATE.test(date)) return null;
+  const year = Number(date.slice(0, 4));
+  if (date.length === 4) return year * 12 + (edge === "start" ? 0 : 11);
+  const month = Number(date.slice(5, 7));
+  if (month < 1 || month > 12) return null;
+  return year * 12 + month - 1;
+}
+
+function monthLabel(index: number): string {
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+}
+
+type Period = { company: string; start: number; end: number };
+
+/** Périodes valides (bornes incluses), `endDate` null = mois de `now`, fin plafonnée à `now`. */
+function experiencePeriods(data: CvData, now: Date): Period[] {
+  const nowIndex = now.getFullYear() * 12 + now.getMonth();
+  const periods: Period[] = [];
+  for (const e of data.experiences) {
+    const start = parseMonth(e.startDate, "start");
+    const end = e.endDate === null ? nowIndex : parseMonth(e.endDate, "end");
+    if (start === null || end === null) continue;
+    const clamped = Math.min(end, nowIndex);
+    if (clamped < start) continue;
+    periods.push({ company: e.company, start, end: clamped });
+  }
+  return periods;
+}
+
+/** Union des périodes triées, les périodes contiguës ou qui se chevauchent sont fusionnées. */
+function mergePeriods(periods: Period[]): Array<{ start: number; end: number }> {
+  const merged: Array<{ start: number; end: number }> = [];
+  for (const p of [...periods].sort((a, b) => a.start - b.start)) {
+    const last = merged[merged.length - 1];
+    if (last && p.start <= last.end + 1) last.end = Math.max(last.end, p.end);
+    else merged.push({ start: p.start, end: p.end });
+  }
+  return merged;
+}
+
+/**
+ * Mois d'expérience cumulés : union des périodes (un chevauchement n'est
+ * compté qu'une fois), `endDate` null = `now`.
+ */
+export function totalExperienceMonths(data: CvData, now: Date = new Date()): number {
+  return mergePeriods(experiencePeriods(data, now)).reduce(
+    (acc, p) => acc + (p.end - p.start + 1),
+    0,
+  );
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Mot entier, insensible à la casse ; "Node.js" ≈ "Node" ≈ "nodejs" ≈ "node js". */
+function skillRegex(item: string): RegExp {
+  const lower = item.trim().toLowerCase();
+  const stripped = lower.replace(/[\s.-]*js$/, "");
+  const base = stripped.length > 0 ? stripped : lower;
+  const body = base.split(/[\s.-]+/).filter(Boolean).map(escapeRegex).join("[\\s.-]*");
+  return new RegExp(
+    `(?<![\\p{L}\\p{N}])${body}(?:[\\s.-]*js)?(?![\\p{L}\\p{N}+#])`,
+    "u",
+  );
+}
+
+function unprovenSkills(data: CvData): string[] {
+  if (data.experiences.length === 0 && data.projects.length === 0) return [];
+  const corpus = [
+    ...data.experiences.flatMap((e) => [e.summary ?? "", ...e.bullets, ...e.stack]),
+    ...data.projects.flatMap((p) => [p.name, p.description, ...p.stack]),
+    data.summary ?? "",
+  ]
+    .join("\n")
+    .toLowerCase();
+  const out: string[] = [];
+  for (const item of data.skills.flatMap((g) => g.items)) {
+    if (!skillRegex(item).test(corpus) && !out.includes(item)) out.push(item);
+  }
+  return out;
+}
+
+function listPreview(items: string[], max = 6): string {
+  return items.slice(0, max).join(", ") + (items.length > max ? "…" : "");
+}
+
+export function computeAtsScore(data: CvData, now: Date = new Date()): AtsScoreResult {
   const issues: Issue[] = [];
 
   function push(i: Issue) {
@@ -112,6 +210,24 @@ export function computeAtsScore(data: CvData): AtsScoreResult {
       impact: 8,
       message: "Email manquant — les ATS rejettent souvent un CV sans contact email.",
       path: "header.email",
+    });
+
+  if (!data.header.title?.trim())
+    push({
+      code: "header.no-title",
+      severity: "warning",
+      impact: 5,
+      message: "Titre de poste absent de l'en-tête — le recruteur filtre sur le poste et la ville.",
+      path: "header.title",
+    });
+
+  if (!data.header.location?.trim())
+    push({
+      code: "header.no-location",
+      severity: "warning",
+      impact: 3,
+      message: "Localisation absente de l'en-tête — le recruteur filtre sur le poste et la ville.",
+      path: "header.location",
     });
 
   if (!data.summary || data.summary.trim().length < 60)
@@ -242,6 +358,55 @@ export function computeAtsScore(data: CvData): AtsScoreResult {
       message: `Dates au mauvais format (attendu YYYY-MM) : ${badDates.slice(0, 3).join(", ")}${badDates.length > 3 ? "…" : ""}`,
     });
 
+  // Cohérence des dates : fin avant début, trous, chevauchements.
+  const reversed = data.experiences.filter((e) => {
+    if (e.endDate === null) return false;
+    const s = parseMonth(e.startDate, "start");
+    const en = parseMonth(e.endDate, "end");
+    return s !== null && en !== null && en < s;
+  });
+  if (reversed.length > 0)
+    push({
+      code: "dates.end-before-start",
+      severity: "error",
+      impact: 8,
+      message: `Date de fin antérieure à la date de début : ${listPreview(reversed.map((e) => e.company), 3)}.`,
+      path: "experiences",
+    });
+
+  const periods = experiencePeriods(data, now);
+  const merged = mergePeriods(periods);
+  const gaps: string[] = [];
+  for (let i = 1; i < merged.length; i++) {
+    const months = merged[i]!.start - merged[i - 1]!.end - 1;
+    if (months > MAX_GAP_MONTHS)
+      gaps.push(`${months} mois entre ${monthLabel(merged[i - 1]!.end)} et ${monthLabel(merged[i]!.start)}`);
+  }
+  if (gaps.length > 0)
+    push({
+      code: "dates.gap",
+      severity: "warning",
+      impact: 4,
+      message: `Trou de plus de ${MAX_GAP_MONTHS} mois dans le parcours (${listPreview(gaps, 2)}) — explique-le (formation, freelance, projet perso).`,
+      path: "experiences",
+    });
+
+  const overlaps: string[] = [];
+  for (let i = 0; i < periods.length; i++)
+    for (let j = i + 1; j < periods.length; j++) {
+      const a = periods[i]!;
+      const b = periods[j]!;
+      if (a.start < b.end && b.start < a.end) overlaps.push(`${a.company} / ${b.company}`);
+    }
+  if (overlaps.length > 0)
+    push({
+      code: "dates.overlap",
+      severity: "info",
+      impact: 0,
+      message: `Périodes qui se chevauchent (${listPreview(overlaps, 3)}) — légitime pour des missions freelance parallèles, à préciser.`,
+      path: "experiences",
+    });
+
   // Liens : protocole valide ?
   const brokenLinks = data.header.links.filter((l) => !/^https?:\/\//i.test(l.href));
   if (brokenLinks.length > 0)
@@ -254,6 +419,26 @@ export function computeAtsScore(data: CvData): AtsScoreResult {
     });
 
   // ---- Content (qualité des bullets)
+  const unproven = unprovenSkills(data);
+  if (unproven.length > 0)
+    push({
+      code: "skills.unproven",
+      severity: "warning",
+      impact: Math.min(6, unproven.length),
+      message: `Compétence affirmée mais non prouvée par une expérience : ${listPreview(unproven, 8)}.`,
+      path: "skills",
+    });
+
+  const noStack = data.experiences.filter((e) => e.stack.length === 0);
+  if (noStack.length > 0)
+    push({
+      code: "experiences.no-stack",
+      severity: "warning",
+      impact: Math.min(6, noStack.length * 2),
+      message: `Stack technique absente pour ${listPreview(noStack.map((e) => e.company), 3)} — le lead dev cherche les technos par poste.`,
+      path: "experiences",
+    });
+
   let totalBullets = 0;
   let noMetric = 0;
   let weakVerb = 0;
@@ -330,6 +515,8 @@ export function computeAtsScore(data: CvData): AtsScoreResult {
     "missing.skills",
     "missing.education",
     "missing.public-link",
+    "header.no-title",
+    "header.no-location",
   ]);
   const contentImpact = sum([
     "bullets.no-verb",
@@ -338,6 +525,8 @@ export function computeAtsScore(data: CvData): AtsScoreResult {
     "bullets.too-long",
     "bullets.passive",
     "experiences.empty-bullets",
+    "skills.unproven",
+    "experiences.no-stack",
   ]);
   const formattingImpact = sum([
     "photo.present",
@@ -346,6 +535,9 @@ export function computeAtsScore(data: CvData): AtsScoreResult {
     "skills.too-few-groups",
     "skills.generic",
     "dates.bad-format",
+    "dates.end-before-start",
+    "dates.gap",
+    "dates.overlap",
     "links.broken-protocol",
     "summary.too-long",
     "summary.too-short",
