@@ -55,7 +55,7 @@ export default async function CvsPage() {
               </div>
               <div className="flex shrink-0 items-center gap-2 text-sm">
                 <a
-                  href={`/api/cv/${cv.id}/pdf`}
+                  href={`/api/cv/${cv.id}/pdf?download=1`}
                   className="rounded-md border px-3 py-1 hover:bg-[var(--color-border)]/30"
                 >
                   PDF
