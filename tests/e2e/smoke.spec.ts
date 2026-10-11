@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("home page renders the hero", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(/CV generator/i);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(/le cv des devs/i);
   await expect(page.getByRole("link", { name: /sign in/i })).toBeVisible();
 });
 
