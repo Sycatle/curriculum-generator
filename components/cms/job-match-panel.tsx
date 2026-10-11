@@ -69,12 +69,20 @@ export function JobMatchPanel({ data }: Props) {
               )}
             />
             <KeywordBucket
+              title="À renforcer : listés en compétences, jamais prouvés en expérience"
+              matches={result.matches.filter((m) => m.provenance === "skills-only")}
+            />
+            <KeywordBucket
               title="Présents mais faibles"
-              matches={result.matches.filter((m) => m.status === "weak")}
+              matches={result.matches.filter(
+                (m) => m.status === "weak" && m.provenance !== "skills-only",
+              )}
             />
             <KeywordBucket
               title="Présents"
-              matches={result.matches.filter((m) => m.status === "present")}
+              matches={result.matches.filter(
+                (m) => m.status === "present" && m.provenance !== "skills-only",
+              )}
               dim
             />
             <KeywordBucket
@@ -115,7 +123,13 @@ function KeywordBucket({
               className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
               title={
                 m.foundIn.length
-                  ? `Trouvé dans : ${m.foundIn.join(", ")}`
+                  ? `Trouvé dans : ${m.foundIn.join(", ")}${
+                      m.provenance === "skills-only"
+                        ? " — à illustrer dans une expérience"
+                        : m.provenance === "summary"
+                          ? " — à appuyer par une expérience"
+                          : ""
+                    }`
                   : "Absent du CV"
               }
             >

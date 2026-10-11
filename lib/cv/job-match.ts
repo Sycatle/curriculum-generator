@@ -115,11 +115,19 @@ export type Keyword = {
   variants: string[];
 };
 
+/**
+ * Où le mot-clé est prouvé : `experience` (expériences ou projets),
+ * `summary` (résumé, sans preuve en expérience), `skills-only` (uniquement
+ * listé dans les compétences). `null` si absent ou seulement en-tête/formation.
+ */
+export type Provenance = "experience" | "skills-only" | "summary";
+
 export type KeywordMatch = {
   keyword: Keyword;
   status: "present" | "missing" | "weak";
   /** Sections du CV où le keyword apparaît, si présent. */
   foundIn: string[];
+  provenance: Provenance | null;
 };
 
 export type JobMatchResult = {
@@ -257,7 +265,7 @@ export function matchKeywords(data: CvData, keywords: Keyword[]): JobMatchResult
     if (totalOccur === 0) status = "missing";
     else if (totalOccur === 1 && kw.category === "must-have") status = "weak";
     else status = "present";
-    return { keyword: kw, status, foundIn };
+    return { keyword: kw, status, foundIn, provenance: provenanceOf(foundIn) };
   });
 
   const mustHaves = matches.filter((m) => m.keyword.category === "must-have");
@@ -270,6 +278,13 @@ export function matchKeywords(data: CvData, keywords: Keyword[]): JobMatchResult
     .map((m) => m.keyword);
 
   return { keywords, matches, coverage, gaps };
+}
+
+function provenanceOf(foundIn: string[]): Provenance | null {
+  if (foundIn.includes("experiences") || foundIn.includes("projects")) return "experience";
+  if (foundIn.includes("summary")) return "summary";
+  if (foundIn.includes("skills")) return "skills-only";
+  return null;
 }
 
 function categoryWeight(k: Keyword): number {

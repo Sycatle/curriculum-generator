@@ -81,6 +81,32 @@ describe("matchKeywords", () => {
     expect(r.gaps.some((g) => g.term === "kubernetes")).toBe(true);
   });
 
+  it("reports where each keyword is proven", () => {
+    const kw = (term: string) => ({ term, category: "must-have" as const, variants: [term] });
+    const cv: CvData = {
+      ...CV,
+      summary: "Backend engineer who loves Redis.",
+      skills: [{ category: "Languages", items: ["Go", "Python", "Redis", "Kafka"] }],
+      experiences: [{ ...CV.experiences[0]!, stack: ["Go"], bullets: ["Built services in Go."] }],
+    };
+    const r = matchKeywords(cv, [kw("go"), kw("python"), kw("redis"), kw("kafka"), kw("rust")]);
+    const prov = (t: string) => r.matches.find((m) => m.keyword.term === t)?.provenance;
+    expect(prov("go")).toBe("experience");
+    expect(prov("python")).toBe("skills-only");
+    expect(prov("redis")).toBe("summary");
+    expect(prov("rust")).toBeNull();
+  });
+
+  it("counts projects as experience-grade proof", () => {
+    const cv: CvData = {
+      ...CV,
+      skills: [{ category: "Languages", items: ["Rust"] }],
+      projects: [{ name: "CLI", description: "Tool written in Rust", stack: ["Rust"] }],
+    };
+    const r = matchKeywords(cv, [{ term: "rust", category: "must-have", variants: ["rust"] }]);
+    expect(r.matches[0]?.provenance).toBe("experience");
+  });
+
   it("coverage reflects must-have presence", () => {
     const kws = extractJobKeywords(JD);
     const r = matchKeywords(CV, kws);
