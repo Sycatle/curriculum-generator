@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1778495561153,
+      "tag": "0000_needy_darwin",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778504893349,
+      "tag": "0001_concerned_forge",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778505641386,
+      "tag": "0002_broken_gabe_jones",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778507398677,
+      "tag": "0003_motionless_chronomancer",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778508251862,
+      "tag": "0004_targeting_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778510034557,
+      "tag": "0005_ft_fields_and_llm",
+      "breakpoints": true
+    }
+  ]
+}

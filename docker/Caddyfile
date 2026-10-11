@@ -1,0 +1,6 @@
+# Replace cv.example.com with your domain. Caddy will provision a Let's Encrypt
+# certificate automatically. To run locally without TLS, set the host to :80.
+{$DOMAIN:cv.example.com} {
+    encode zstd gzip
+    reverse_proxy app:3000
+}

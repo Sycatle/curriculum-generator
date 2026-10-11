@@ -1,0 +1,12 @@
+# Local dev override — NOT committed (see .gitignore).
+# Neutralise les redémarrages auto : sur cette machine, un `systemctl restart docker`
+# ne doit ressusciter aucun container. La prod garde les policies du fichier de base.
+services:
+  app:
+    restart: "no"
+  postgres:
+    restart: "no"
+  cron:
+    restart: "no"
+  caddy:
+    restart: "no"
