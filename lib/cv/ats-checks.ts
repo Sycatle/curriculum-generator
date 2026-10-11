@@ -75,6 +75,9 @@ const STRONG_VERBS = new Set([
   "refondu", "optimisé", "développé",
 ]);
 
+// Participe passé anglais (-ed) ou français (-é, -i, -is, -it, -u, -ert) : "Repris", "Écrit", "Couvert"…
+const PAST_PARTICIPLE = /^.{3,}(ed|é|ée|és|ées|i|is|it|u|us|ert)$/i;
+
 const WEAK_VERBS = new Set([
   "helped", "assisted", "participated", "worked", "responsible",
   "supported", "involved", "various", "duties",
@@ -459,7 +462,7 @@ export function computeAtsScore(data: CvData, now: Date = new Date()): AtsScoreR
       const w = firstWord(b);
       if (!w) noVerb++;
       else if (WEAK_VERBS.has(w)) weakVerb++;
-      else if (!STRONG_VERBS.has(w) && !/ed$|ied$/i.test(w)) noVerb++;
+      else if (!STRONG_VERBS.has(w) && !PAST_PARTICIPLE.test(w)) noVerb++;
       if (!hasMetric(b)) noMetric++;
       if (b.length > LIMITS.bulletChars.hard) tooLong++;
       if (PASSIVE_PATTERNS.some((rx) => rx.test(b))) passive++;

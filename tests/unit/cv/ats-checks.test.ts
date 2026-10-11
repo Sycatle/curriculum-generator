@@ -110,6 +110,14 @@ describe("computeAtsScore", () => {
     expect(r.issues.some((i) => i.code === "bullets.weak-verb")).toBe(true);
   });
 
+  it("accepts French past participles as action verbs", () => {
+    const cv = (bullets: string[]) =>
+      baseCv({ experiences: [{ ...baseCv().experiences[0]!, bullets }] });
+    const ok = cv(["Repris 2 applications.", "Écrit 900 tests.", "Couvert 80 écrans.", "Choisi Better Auth (3 jours gagnés)."]);
+    expect(codes(ok)).not.toContain("bullets.no-verb");
+    expect(codes(cv(["Calcul des scores côté serveur."]))).toContain("bullets.no-verb");
+  });
+
   it("flags missing metrics", () => {
     const r = computeAtsScore(
       baseCv({
