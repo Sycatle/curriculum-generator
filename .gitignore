@@ -47,3 +47,4 @@ drizzle/meta/_journal.json.bak
 
 # docker
 *.pid
+tsconfig.tsbuildinfo
