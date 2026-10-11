@@ -1,11 +1,11 @@
 <div align="center">
 
-# CV Generator
+# Curriculum Generator
 
 **Edit your content, not your layout.**
 A self-hosted CV builder with live PDF preview, an ATS score, and a job-search toolkit built in.
 
-[![CI](https://github.com/Sycatle/cv-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/Sycatle/cv-generator/actions/workflows/ci.yml)
+[![CI](https://github.com/Sycatle/curriculum-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/Sycatle/curriculum-generator/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)

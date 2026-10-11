@@ -50,8 +50,8 @@ export const sampleCvData: CvData = {
   ],
   projects: [
     {
-      name: "cv-generator",
-      url: "https://github.com/sycatle/cv-generator",
+      name: "curriculum-generator",
+      url: "https://github.com/sycatle/curriculum-generator",
       description:
         "Self-hosted, open-source CV generator. Édite le contenu, puis exporte un PDF A4 sur une ou plusieurs pages. C'est ce que tu lis.",
       stack: ["Next.js", "React-PDF", "Drizzle", "Tailwind"],

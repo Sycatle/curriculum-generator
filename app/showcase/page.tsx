@@ -7,7 +7,7 @@ import { sampleCvData, sampleTheme } from "@/lib/cv/sample";
 export const metadata: Metadata = {
   title: "Showcase",
   description:
-    "CV de démonstration généré avec cv-generator — preuve que le rendu est propre, structuré et imprimable.",
+    "CV de démonstration généré avec curriculum-generator — preuve que le rendu est propre, structuré et imprimable.",
 };
 
 export default function ShowcasePage() {
@@ -19,7 +19,7 @@ export default function ShowcasePage() {
         </Link>
         <div className="flex items-center gap-2 text-sm">
           <a
-            href="https://github.com/sycatle/cv-generator"
+            href="https://github.com/sycatle/curriculum-generator"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-[var(--color-muted)] hover:text-[var(--color-fg)]"

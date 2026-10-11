@@ -81,7 +81,7 @@ export function CommandPalette() {
               icon={<Github className="h-4 w-4" />}
               onSelect={() => {
                 setOpen(false);
-                window.open("https://github.com/sycatle/cv-generator", "_blank");
+                window.open("https://github.com/sycatle/curriculum-generator", "_blank");
               }}
             >
               GitHub

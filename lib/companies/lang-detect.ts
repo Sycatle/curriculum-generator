@@ -23,7 +23,7 @@ async function fetchHomepage(domain: string): Promise<string | null> {
     try {
       const res = await fetch(url, {
         redirect: "follow",
-        headers: { "User-Agent": "Mozilla/5.0 cv-generator/lang-detect" },
+        headers: { "User-Agent": "Mozilla/5.0 curriculum-generator/lang-detect" },
         signal: AbortSignal.timeout(8000),
       });
       if (res.ok) return await res.text();

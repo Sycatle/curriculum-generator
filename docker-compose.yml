@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${IMAGE:-ghcr.io/sycatle/cv-generator:latest}
+    image: ${IMAGE:-ghcr.io/sycatle/curriculum-generator:latest}
     container_name: cv-generator-app
     env_file:
       - .env.production

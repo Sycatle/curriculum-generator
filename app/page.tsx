@@ -27,7 +27,7 @@ function Nav() {
       </Link>
       <div className="flex items-center gap-2 text-sm">
         <a
-          href="https://github.com/sycatle/cv-generator"
+          href="https://github.com/sycatle/curriculum-generator"
           target="_blank"
           rel="noopener noreferrer"
           className="hidden items-center gap-2 rounded-md px-3 py-1.5 text-[var(--color-muted)] hover:text-[var(--color-fg)] sm:inline-flex"
@@ -71,7 +71,7 @@ function Hero() {
             <ArrowRight className="h-4 w-4" />
           </Link>
           <a
-            href="https://github.com/sycatle/cv-generator"
+            href="https://github.com/sycatle/curriculum-generator"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-md border px-4 py-2.5 text-sm font-medium hover:bg-[var(--color-border)]/30"
@@ -149,7 +149,7 @@ function CvMockup() {
           </div>
         </Block>
         <Block label="Projets">
-          <div className="font-semibold text-[oklch(0.55_0.18_250)]">cv-generator</div>
+          <div className="font-semibold text-[oklch(0.55_0.18_250)]">curriculum-generator</div>
           <div className="text-[9px]">Open-source CV builder, ce que tu lis maintenant.</div>
         </Block>
       </main>
@@ -259,12 +259,12 @@ function Footer() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 text-xs text-[var(--color-muted)]">
         <span>MIT licensed · Bring your own VPS.</span>
         <a
-          href="https://github.com/sycatle/cv-generator"
+          href="https://github.com/sycatle/curriculum-generator"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-[var(--color-fg)]"
         >
-          github.com/sycatle/cv-generator
+          github.com/sycatle/curriculum-generator
         </a>
       </div>
     </footer>

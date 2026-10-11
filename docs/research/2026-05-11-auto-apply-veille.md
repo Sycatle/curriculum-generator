@@ -1,10 +1,10 @@
-# Veille — Automatiser les candidatures et les brancher sur cv-generator
+# Veille — Automatiser les candidatures et les brancher sur curriculum-generator
 
 _Date : 2026-05-11_
 
 ## Context
 
-Le projet `cv-generator` est déjà mature : Next.js 15 + Postgres/Drizzle, templates PDF `modern` et `ats`, assistant Claude avec tool-calling (rewrite, retarget), import OCR, snapshots, partage public. Tout ce qu'il faut pour produire **un CV ciblé par offre en quelques secondes**.
+Le projet `curriculum-generator` est déjà mature : Next.js 15 + Postgres/Drizzle, templates PDF `modern` et `ats`, assistant Claude avec tool-calling (rewrite, retarget), import OCR, snapshots, partage public. Tout ce qu'il faut pour produire **un CV ciblé par offre en quelques secondes**.
 
 Manque la moitié aval du flux : **trouver les offres pertinentes** et **soumettre la candidature** (CV adapté + lettre + formulaire). Objectif : full-auto avec personnalisation LLM par employeur, propre, sans se faire bannir, avec un livrable de veille pour décider de l'architecture.
 
@@ -79,7 +79,7 @@ Pour Workday, Lever hosted, formulaires custom, etc. : pas le choix, il faut **p
 
 | Approche | Outil | Avantages | Inconvénients |
 |---|---|---|---|
-| **Playwright pur + sélecteurs codés** | `playwright` | Rapide, déterministe, déjà utilisé dans cv-generator (`playwright.config.ts`) | Casse à chaque refonte de formulaire. Maintenance N×ATS. |
+| **Playwright pur + sélecteurs codés** | `playwright` | Rapide, déterministe, déjà utilisé dans curriculum-generator (`playwright.config.ts`) | Casse à chaque refonte de formulaire. Maintenance N×ATS. |
 | **Agent LLM browser** | **Stagehand v3** ([browserbase/stagehand](https://github.com/browserbase/stagehand)) | `act()`/`extract()`/`observe()` en langage naturel, **cache d'actions** (replay <100ms sans appel LLM), TypeScript natif | Coût LLM par flow nouveau ; nécessite Browserbase ou navigateur local. |
 | **Agent spécialisé form-filling** | Skyvern 2.0 | Meilleur sur WebVoyager pour "WRITE" tasks (85.85%) | Python, plus lourd. |
 
@@ -183,7 +183,7 @@ Filtre `lib/jobs/matching.ts` étendu :
 
 Tu as demandé qu'on tranche entre **monorepo intégré** et **service séparé**. Voici la recommandation argumentée :
 
-### Recommandation : **module dans le monorepo cv-generator**, structure isolée
+### Recommandation : **module dans le monorepo curriculum-generator**, structure isolée
 
 ```
 lib/

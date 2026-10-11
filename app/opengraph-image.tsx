@@ -38,7 +38,7 @@ export default async function Image() {
           >
             CV
           </div>
-          <span style={{ opacity: 0.7 }}>cv-generator · open source</span>
+          <span style={{ opacity: 0.7 }}>curriculum-generator · open source</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "flex", fontSize: 72, fontWeight: 700, lineHeight: 1.05, letterSpacing: -1 }}>
