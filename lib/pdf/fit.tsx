@@ -4,7 +4,7 @@ import { CvDocument } from "./template";
 import { CvAtsDocument } from "./template-ats";
 import { CvPremiumDocument } from "./template-premium";
 import { countPagesInPdfBuffer } from "./measure";
-import type { SpacingTier, TokenOverrides } from "./tokens";
+import { applyTruncation, type SpacingTier, type TokenOverrides } from "./tokens";
 
 type Pass = {
   spacingTier?: SpacingTier;
@@ -26,12 +26,17 @@ const CASCADE: Pass[] = [
   { spacingTier: "ultracompact", fontScale: 0.85, maxBulletsPerExp: 3, maxExperiences: 5 },
 ];
 
-function doc(
+export function passOverrides(pass: number): TokenOverrides {
+  return CASCADE[pass]!;
+}
+
+/** Build the document element for one cascade pass (shared by server export and client preview). */
+export function fitDocument(
   data: CvData,
   theme: Theme,
+  locale: "fr" | "en",
   overrides: TokenOverrides,
   paginate: boolean,
-  locale: "fr" | "en",
 ) {
   if (theme.template === "ats")
     return <CvAtsDocument data={data} theme={theme} locale={locale} overrides={overrides} paginate={paginate} />;
@@ -40,15 +45,83 @@ function doc(
   return <CvDocument data={data} theme={theme} locale={locale} overrides={overrides} paginate={paginate} />;
 }
 
-async function renderBuf(
+export type FitReport = {
+  /** Index of the cascade pass that was kept. 0 = theme untouched. */
+  pass: number;
+  fontScale: number;
+  spacing: SpacingTier;
+  droppedBullets: number;
+  droppedExperiences: number;
+  /** True if even the most aggressive pass still needed more than one page (end of page 1 is clipped). */
+  overflowed: boolean;
+  /** Page count of the kept pass with natural pagination (> 1 only when overflowed). */
+  pages: number;
+  /** What was cut, for display. Bullets dropped inside dropped experiences are not repeated here. */
+  dropped: {
+    experiences: string[];
+    bullets: Array<{ company: string; count: number }>;
+  };
+};
+
+/** JSON safe for an HTTP header value: non-ASCII chars are \\u-escaped (headers are ByteStrings). */
+export function serializeFitReport(r: FitReport): string {
+  return JSON.stringify(r).replace(
+    /[\u0080-\uffff]/g,
+    (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
+}
+
+function buildReport(
   data: CvData,
   theme: Theme,
-  overrides: TokenOverrides,
-  paginate: boolean,
+  pass: number,
+  overflowed: boolean,
+  pages: number,
+): FitReport {
+  const o = CASCADE[pass]!;
+  const kept = applyTruncation(data, o).experiences;
+  const droppedExperiences = data.experiences.slice(kept.length).map((e) => e.company);
+  const bullets: FitReport["dropped"]["bullets"] = [];
+  kept.forEach((e, i) => {
+    const count = data.experiences[i]!.bullets.length - e.bullets.length;
+    if (count > 0) bullets.push({ company: e.company, count });
+  });
+  return {
+    pass,
+    fontScale: o.fontScale ?? 1,
+    spacing: o.spacingTier ?? theme.spacing,
+    droppedBullets: bullets.reduce((n, b) => n + b.count, 0),
+    droppedExperiences: droppedExperiences.length,
+    overflowed,
+    pages,
+    dropped: { experiences: droppedExperiences, bullets },
+  };
+}
+
+type RenderFn = (doc: Parameters<typeof renderToBuffer>[0]) => Promise<Uint8Array>;
+
+/**
+ * Renderer-agnostic fit cascade: the server passes `renderToBuffer`, the browser
+ * preview passes a `pdf().toBlob()` wrapper, so both walk the exact same passes.
+ */
+export async function fitCascade(
+  data: CvData,
+  theme: Theme,
   locale: "fr" | "en",
-): Promise<Buffer> {
-  const b = await renderToBuffer(doc(data, theme, overrides, paginate, locale));
-  return Buffer.isBuffer(b) ? b : Buffer.from(b);
+  render: RenderFn,
+): Promise<{ bytes: Uint8Array; report: FitReport }> {
+  let lastPages = 0;
+  for (let i = 0; i < CASCADE.length; i++) {
+    const bytes = await render(fitDocument(data, theme, locale, CASCADE[i]!, true));
+    lastPages = countPagesInPdfBuffer(bytes);
+    if (lastPages <= 1) {
+      return { bytes, report: buildReport(data, theme, i, false, lastPages) };
+    }
+  }
+  // Panic clip: enforce 1 page visually.
+  const last = CASCADE.length - 1;
+  const bytes = await render(fitDocument(data, theme, locale, CASCADE[last]!, false));
+  return { bytes, report: buildReport(data, theme, last, true, lastPages) };
 }
 
 export type FitResult = {
@@ -56,6 +129,7 @@ export type FitResult = {
   pass: number;
   /** True if even the most aggressive pass overflowed and we had to clip visually. */
   overflowed: boolean;
+  report: FitReport;
 };
 
 /**
@@ -73,16 +147,16 @@ export async function renderCvFitted(
   theme: Theme,
   locale: "fr" | "en" = "en",
 ): Promise<FitResult> {
-  for (let i = 0; i < CASCADE.length; i++) {
-    const buf = await renderBuf(data, theme, CASCADE[i]!, true, locale);
-    if (countPagesInPdfBuffer(buf) <= 1) {
-      return { buffer: buf, pass: i, overflowed: false };
-    }
-  }
-  // Panic clip: enforce 1 page visually.
-  const last = CASCADE[CASCADE.length - 1]!;
-  const clipped = await renderBuf(data, theme, last, false, locale);
-  return { buffer: clipped, pass: CASCADE.length - 1, overflowed: true };
+  const { bytes, report } = await fitCascade(data, theme, locale, async (d) => {
+    const b = await renderToBuffer(d);
+    return Buffer.isBuffer(b) ? b : Buffer.from(b);
+  });
+  return {
+    buffer: Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes),
+    pass: report.pass,
+    overflowed: report.overflowed,
+    report,
+  };
 }
 
 export async function renderCvFittedBuffer(

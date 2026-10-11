@@ -3,7 +3,9 @@ import type { CvData, Theme } from "@/lib/cv/schema";
 import { CvDocument } from "./template";
 import { CvAtsDocument } from "./template-ats";
 import { CvPremiumDocument } from "./template-premium";
-import { renderCvFittedBuffer } from "./fit";
+import { renderCvFitted, renderCvFittedBuffer, serializeFitReport, type FitReport } from "./fit";
+
+export type { FitReport } from "./fit";
 
 type RenderOptions = { fit?: boolean; locale?: "fr" | "en" };
 
@@ -42,4 +44,21 @@ export async function renderCvStream(data: CvData, theme: Theme, opts: RenderOpt
   const { Readable } = await import("node:stream");
   const buf = await renderCvFittedBuffer(data, theme, locale);
   return Readable.from(buf);
+}
+
+/**
+ * Same as `renderCvStream` but also returns the fit report (null when the
+ * theme is multi-page / fit is disabled, since nothing is cut then).
+ */
+export async function renderCvStreamWithReport(
+  data: CvData,
+  theme: Theme,
+  opts: RenderOptions = {},
+): Promise<{ stream: Awaited<ReturnType<typeof renderCvStream>>; fit: FitReport | null; fitHeader: string | null }> {
+  const fit = opts.fit ?? theme.pageMode === "single";
+  const locale = opts.locale ?? "en";
+  if (!fit) return { stream: await renderCvStream(data, theme, opts), fit: null, fitHeader: null };
+  const { Readable } = await import("node:stream");
+  const r = await renderCvFitted(data, theme, locale);
+  return { stream: Readable.from(r.buffer), fit: r.report, fitHeader: serializeFitReport(r.report) };
 }

@@ -18,6 +18,7 @@ import {
   Undo2,
 } from "lucide-react";
 import type { CvData, CvInput } from "@/lib/cv/schema";
+import type { FitReport } from "@/lib/pdf/fit";
 import { measureCvAction, saveCvAction } from "@/app/(dashboard)/cvs/actions";
 import {
   canRedo,
@@ -86,6 +87,8 @@ export function CvEditor({ id, initial, updatedAt: initialUpdatedAt }: Props) {
   const [atsOpen, setAtsOpen] = useState(false);
   const [matchOpen, setMatchOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
+  const [fitReport, setFitReport] = useState<FitReport | null>(null);
+  const [measuredFit, setMeasuredFit] = useState<FitReport | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const valueRef = useRef(history.present);
@@ -135,13 +138,18 @@ export function CvEditor({ id, initial, updatedAt: initialUpdatedAt }: Props) {
     let cancelled = false;
     const t = setTimeout(async () => {
       const res = await measureCvAction(previewValue);
-      if (!cancelled && res.ok) setNaturalPages(res.pages);
+      if (cancelled || !res.ok) return;
+      setNaturalPages(res.pages);
+      setMeasuredFit(res.fit);
     }, 800);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
   }, [previewValue]);
+
+  // Live (browser) report while the preview is open, server-measured report otherwise.
+  const activeFit = previewOpen ? fitReport : measuredFit;
 
   // Keyboard shortcuts: ⌘S save / ⌘Z undo / ⌘⇧Z redo / ⌘P toggle preview.
   useEffect(() => {
@@ -242,9 +250,7 @@ export function CvEditor({ id, initial, updatedAt: initialUpdatedAt }: Props) {
               label="Assistant"
             />
             <a
-              href={`/api/cv/${id}/pdf`}
-              target="_blank"
-              rel="noreferrer"
+              href={`/api/cv/${id}/pdf?download=1`}
               className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs hover:bg-[var(--color-border)]/40"
               title={
                 value.theme.pageMode === "multi"
@@ -256,7 +262,7 @@ export function CvEditor({ id, initial, updatedAt: initialUpdatedAt }: Props) {
               PDF
             </a>
             <a
-              href={`/api/cv/${id}/docx`}
+              href={`/api/cv/${id}/docx?download=1`}
               className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs hover:bg-[var(--color-border)]/40"
               title="Télécharger en DOCX (format préféré des ATS)"
             >
@@ -277,6 +283,11 @@ export function CvEditor({ id, initial, updatedAt: initialUpdatedAt }: Props) {
           />
         }
       />
+      {value.theme.pageMode === "single" &&
+        activeFit &&
+        (activeFit.overflowed || activeFit.droppedBullets > 0 || activeFit.droppedExperiences > 0) && (
+        <FitWarning report={activeFit} />
+      )}
       <div className="flex min-h-0 flex-1 gap-4">
         <div
           className={`grid min-h-0 flex-1 gap-4 ${previewOpen ? "lg:grid-cols-2" : "grid-cols-1"}`}
@@ -293,6 +304,7 @@ export function CvEditor({ id, initial, updatedAt: initialUpdatedAt }: Props) {
                 data={previewValue.data}
                 theme={previewValue.theme}
                 locale={previewValue.locale}
+                onFitReport={setFitReport}
               />
             </div>
           )}
@@ -329,6 +341,35 @@ export function CvEditor({ id, initial, updatedAt: initialUpdatedAt }: Props) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function FitWarning({ report }: { report: FitReport }) {
+  const { experiences, bullets } = report.dropped;
+  return (
+    <div
+      role="alert"
+      className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400"
+    >
+      <p className="flex items-center gap-1.5 font-medium">
+        <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
+        Export 1 page : du contenu sera coupé dans le PDF envoyé aux recruteurs.
+      </p>
+      <ul className="mt-1 list-disc space-y-0.5 pl-9">
+        {experiences.length > 0 && <li>Expériences retirées : {experiences.join(", ")}</li>}
+        {bullets.length > 0 && (
+          <li>
+            Puces retirées : {bullets.map((b) => `${b.company} (${b.count})`).join(", ")}
+          </li>
+        )}
+        {report.overflowed && (
+          <li>
+            Le contenu dépasse encore une page ({report.pages} pages) : le bas de la page est rogné.
+          </li>
+        )}
+      </ul>
+      <p className="mt-1 pl-5">Raccourcir le contenu ou passer en multi-pages.</p>
     </div>
   );
 }

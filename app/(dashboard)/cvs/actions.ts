@@ -13,6 +13,7 @@ import {
 } from "@/lib/cv/repository";
 import { CvDataSchema, CvInputSchema, SlugSchema, ThemeSchema } from "@/lib/cv/schema";
 import { countPdfPages } from "@/lib/pdf/measure";
+import { renderCvFitted, type FitReport } from "@/lib/pdf/fit";
 import { blankCvData, defaultTheme } from "@/lib/cv/defaults";
 
 const NewCvInput = z.object({
@@ -82,7 +83,7 @@ export async function createImportedCvAction(
 
 export async function measureCvAction(
   payload: unknown,
-): Promise<{ ok: true; pages: number } | { ok: false; error: string }> {
+): Promise<{ ok: true; pages: number; fit: FitReport | null } | { ok: false; error: string }> {
   const session = await requireSession();
   if (!session) return { ok: false, error: "Unauthorized" };
   const parsed = CvInputSchema.safeParse(payload);
@@ -95,7 +96,13 @@ export async function measureCvAction(
       parsed.data.theme,
       parsed.data.locale,
     );
-    return { ok: true, pages };
+    // Single-page mode: also run the fit cascade so the editor shows exactly
+    // what the export will cut, even with the preview pane closed.
+    const fit =
+      parsed.data.theme.pageMode === "single"
+        ? (await renderCvFitted(parsed.data.data, parsed.data.theme, parsed.data.locale)).report
+        : null;
+    return { ok: true, pages, fit };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Measure failed" };
   }

@@ -9,9 +9,8 @@ export function countPagesInPdfBuffer(buffer: Buffer | Uint8Array): number {
   // @react-pdf/renderer emits one `/Type /Page` object per page. We must avoid
   // matching `/Type /Pages` (the pages tree root) — the trailing character is
   // always a delimiter that isn't a letter/digit.
-  const text = Buffer.isBuffer(buffer)
-    ? buffer.toString("latin1")
-    : Buffer.from(buffer).toString("latin1");
+  // TextDecoder keeps this usable in the browser (no Buffer there).
+  const text = new TextDecoder("latin1").decode(buffer);
   const matches = text.match(/\/Type\s*\/Page(?![a-zA-Z])/g);
   return matches ? matches.length : 0;
 }
